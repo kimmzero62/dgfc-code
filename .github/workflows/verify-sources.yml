@@ -6,8 +6,12 @@ on:
   push:
     branches: [claude/epic-pascal-xal94a]
     paths:
-      - scripts/verify_sources.py
+      - scripts/verify_sources*.py
       - .github/workflows/verify-sources.yml
+
+concurrency:
+  group: verify-sources
+  cancel-in-progress: true
 
 jobs:
   verify:
@@ -18,10 +22,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install pandas requests yfinance pykrx xlrd openpyxl lxml tabulate
-      - run: python -u scripts/verify_sources.py
-        env:
-          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
-          ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      - run: pip install pandas requests
+      - run: python -u scripts/verify_sources2.py
