@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install pandas requests yfinance pykrx xlrd openpyxl lxml tabulate
-      - run: python scripts/verify_sources.py
+      - run: python -u scripts/verify_sources.py
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}

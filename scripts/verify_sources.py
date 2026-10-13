@@ -9,6 +9,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import signal
 import sys
 import time
 import traceback
@@ -25,8 +26,18 @@ ECOS_KEY = os.environ.get("ECOS_API_KEY", "") or "sample"
 results: list[dict] = []
 
 
+class CheckTimeout(Exception):
+    pass
+
+
+def _alarm(signum, frame):
+    raise CheckTimeout("항목당 60초 초과")
+
+
 def record(indicator: str, source: str, fn):
     t0 = time.time()
+    signal.signal(signal.SIGALRM, _alarm)
+    signal.alarm(60)
     try:
         info = fn()
         status = "OK" if info.get("rows", 0) > 0 else "EMPTY"
@@ -39,6 +50,9 @@ def record(indicator: str, source: str, fn):
                         "latest": "", "latest_value": "", "rows": 0,
                         "note": f"{type(e).__name__}: {str(e)[:180]}", "secs": round(time.time() - t0, 1)})
         traceback.print_exc()
+    finally:
+        signal.alarm(0)
+    print("RESULT " + json.dumps(results[-1], ensure_ascii=False, default=str), flush=True)
 
 
 def summarize(s: pd.Series, note: str = "") -> dict:
