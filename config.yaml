@@ -33,6 +33,7 @@ alerts:
   issue_label: macro-flag
   mention: kimmzero62         # 이슈 본문에서 멘션할 GitHub 계정 (알림 보장용, 비우면 생략)
   telegram: auto              # TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID 시크릿이 있으면 전송
+  telegram_summary: true      # true: 매 실행마다 요약 전송 (새 플래그 없어도), false: 새 플래그가 있을 때만
 
 indicators:
   # ---------- 미국 금리·커브 ----------
