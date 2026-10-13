@@ -1,4 +1,4 @@
-"""실행 진입점: python -m macro_monitor.main [--out site] [--no-notify]"""
+"""실행 진입점: python -m macro_monitor.main [--out site] [--no-notify] [--telegram-test]"""
 from __future__ import annotations
 
 import argparse
@@ -58,8 +58,11 @@ def main(argv=None) -> int:
     ap.add_argument("--db", default=str(ROOT / "data" / "macro.db"))
     ap.add_argument("--out", default=str(ROOT / "site"))
     ap.add_argument("--no-notify", action="store_true", help="알림을 보내지 않는다 (테스트용)")
+    ap.add_argument("--telegram-test", action="store_true", help="텔레그램 연결 테스트 메시지만 보내고 끝낸다")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+    if args.telegram_test:
+        return 0 if notify.telegram_test() else 1
 
     cfg = load_config()
     now = datetime.now(KST)

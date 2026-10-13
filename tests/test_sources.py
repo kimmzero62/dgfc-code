@@ -27,3 +27,23 @@ def test_wgb_cds_parses_and_drops_weekends(monkeypatch):
     assert calls[1] == ("POST", {"GLOBALVAR": {"FUNCTION": "CDS", "COUNTRY1": {"SYMBOL": "3"}}})
     assert list(s.index.strftime("%Y-%m-%d")) == ["2026-10-09", "2026-10-12"]  # 토·일 제외
     assert s.iloc[-1] == 72.4
+
+
+def test_telegram_strips_whitespace(monkeypatch):
+    from macro_monitor import notify
+
+    sent = {}
+
+    class R:
+        ok, status_code, text = True, 200, "{}"
+
+    def fake_post(url, json=None, timeout=None):
+        sent["url"], sent["chat"] = url, json["chat_id"]
+        return R()
+
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:abc\n")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", " 42 \n")
+    monkeypatch.setattr(notify.requests, "post", fake_post)
+    assert notify.telegram_test()
+    assert sent["url"] == "https://api.telegram.org/bot123:abc/sendMessage"
+    assert sent["chat"] == "42"
