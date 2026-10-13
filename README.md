@@ -1,6 +1,6 @@
 # 매크로 모니터
 
-증권사 앱이나 일반 알림에서 잘 보이지 않는 매크로·크레딧·유동성 지표 25개를 매일 수집하고,
+증권사 앱이나 일반 알림에서 잘 보이지 않는 매크로·크레딧·유동성 지표 33개를 매일 수집하고,
 평소 범위를 벗어난 움직임을 **표시만** 하는 개인용 대시보드입니다.
 
 - **감지만 하고 해석은 하지 않습니다.** "z-score +2.3, 5영업일 +85bp"처럼 사실만 적고, 국면 판단이나 투자 시사점은 쓰지 않습니다.
@@ -12,10 +12,10 @@
 
 ```
 config.yaml                 지표 목록과 감지 기준값 (여기만 고치면 됨)
-manual/manual_inputs.csv    수동 입력 지표 (국가 CDS 등)
+manual/manual_inputs.csv    수동 입력 지표 (자동 수집이 안 되는 지표용, 현재 비어 있음)
 data/macro.db               누적 시계열 (SQLite, 매 실행 후 자동 커밋)
 macro_monitor/
-  sources/                  수집기 (FRED, yfinance, 뉴욕연은, 재무부, 일본 재무성, DefiLlama, 금투협, 수동)
+  sources/                  수집기 (FRED, yfinance, 뉴욕연은, 재무부, 일본 재무성, DefiLlama, 금투협, worldgovernmentbonds, 수동)
   storage.py                SQLite 저장
   detect.py                 감지 (z-score, 백분위, 1년 고저, 변화폭 극단치)
   report.py                 HTML 대시보드
@@ -81,23 +81,23 @@ FRED는 키 없는 CSV 경로가 GitHub Actions IP에서 응답하지 않아 공
 | | 지급준비금 | FRED `WRESBAL` | 주간 |
 | 글로벌 | 엔/달러 | yfinance `JPY=X` | |
 | | 일본 30년물 | 일본 재무성 CSV | |
-| | 한국 5년 CDS | 수동 입력 | 아래 참고 |
+| 국가 CDS (5년) | 미국, 독일, 프랑스, 이탈리아, 스페인, 영국, 일본, 중국, 한국 | worldgovernmentbonds.com | 국가 페이지의 historical API. 주말 값은 제외. 나라 추가는 `config.yaml`에서 `params.country`에 사이트 URL의 국가명(예: `brazil`)을 넣으면 됨 |
 | 크립토 | 스테이블코인 시총 | DefiLlama | |
 | 한국 | 회사채 AA-·BBB- 3년, CD 91일 | 금융투자협회 채권정보센터 최종호가수익률 | 키·로그인 불필요 |
 | 레짐 상징 기업 | ORCL, CRWV, OWL, BX, APO, ARES | yfinance | |
 
 외국인 순매수는 제외했습니다(KRX 데이터가 로그인을 요구함).
 
-### 수동 입력 (국가 CDS 등)
+### 수동 입력
 
-GitHub 웹에서 `manual/manual_inputs.csv` 를 열고 연필 아이콘으로 한 줄씩 추가합니다.
+자동 수집이 안 되는 지표가 생기면 GitHub 웹에서 `manual/manual_inputs.csv` 를 열고 연필 아이콘으로 한 줄씩 추가합니다.
 
 ```
 date,key,value
-2026-10-10,cds_kr5y,24.5
+2026-10-10,my_key,24.5
 ```
 
-다른 나라를 추가하려면 `config.yaml`에 `source: manual` 지표를 하나 더 만들고 `params.key`를 새 키로 지정하세요.
+`config.yaml`에 `source: manual` 지표를 만들고 `params.key`를 그 키로 지정하세요.
 
 ## 로컬 실행
 

@@ -56,7 +56,17 @@ indicators:
   # ---------- 글로벌 ----------
   - {id: usdjpy, name: 엔/달러 환율, group: 글로벌, source: yfinance, params: {ticker: "JPY=X"}, unit: JPY, change: pct, freq: daily, decimals: 2}
   - {id: jgb30, name: 일본 30년물 국채 금리, group: 글로벌, source: mof_jgb, params: {tenor: 30Y}, unit: "%", change: bp, freq: daily, decimals: 3}
-  - {id: cds_kr5y, name: 한국 5년 CDS (수동 입력), group: 글로벌, source: manual, params: {key: cds_kr5y}, unit: bp, change: abs, freq: weekly, decimals: 1}
+
+  # ---------- 국가 CDS (5년, worldgovernmentbonds.com) ----------
+  - {id: cds_us5y, name: 미국 5년 CDS, group: 국가 CDS, source: wgb_cds, params: {country: united-states}, unit: bp, change: abs, freq: daily, decimals: 1}
+  - {id: cds_de5y, name: 독일 5년 CDS, group: 국가 CDS, source: wgb_cds, params: {country: germany}, unit: bp, change: abs, freq: daily, decimals: 1}
+  - {id: cds_fr5y, name: 프랑스 5년 CDS, group: 국가 CDS, source: wgb_cds, params: {country: france}, unit: bp, change: abs, freq: daily, decimals: 1}
+  - {id: cds_it5y, name: 이탈리아 5년 CDS, group: 국가 CDS, source: wgb_cds, params: {country: italy}, unit: bp, change: abs, freq: daily, decimals: 1}
+  - {id: cds_es5y, name: 스페인 5년 CDS, group: 국가 CDS, source: wgb_cds, params: {country: spain}, unit: bp, change: abs, freq: daily, decimals: 1}
+  - {id: cds_uk5y, name: 영국 5년 CDS, group: 국가 CDS, source: wgb_cds, params: {country: united-kingdom}, unit: bp, change: abs, freq: daily, decimals: 1}
+  - {id: cds_jp5y, name: 일본 5년 CDS, group: 국가 CDS, source: wgb_cds, params: {country: japan}, unit: bp, change: abs, freq: daily, decimals: 1}
+  - {id: cds_cn5y, name: 중국 5년 CDS, group: 국가 CDS, source: wgb_cds, params: {country: china}, unit: bp, change: abs, freq: daily, decimals: 1}
+  - {id: cds_kr5y, name: 한국 5년 CDS, group: 국가 CDS, source: wgb_cds, params: {country: south-korea}, unit: bp, change: abs, freq: daily, decimals: 1}
 
   # ---------- 크립토 ----------
   - {id: stablecoin_mcap, name: 스테이블코인 총 시가총액, group: 크립토, source: defillama, params: {}, unit: "$bn", change: pct, freq: daily, decimals: 1}
