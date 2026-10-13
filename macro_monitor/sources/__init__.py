@@ -5,7 +5,7 @@
 """
 from __future__ import annotations
 
-from . import acm, defillama, fred, kofia, manual, mof_jgb, tga, yfin
+from . import acm, defillama, fred, kofia, manual, mof_jgb, tga, wgb_cds, yfin
 
 FETCHERS = {
     "fred": fred.fetch,
@@ -17,4 +17,5 @@ FETCHERS = {
     "manual": manual.fetch,
     "defillama": defillama.fetch,
     "kofia": kofia.fetch,
+    "wgb_cds": wgb_cds.fetch,
 }
