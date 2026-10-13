@@ -55,16 +55,37 @@ def _github_issue(title: str, body: str, cfg: dict) -> bool:
     return r.ok
 
 
+def _telegram_creds() -> tuple[str, str]:
+    # 시크릿을 붙여넣을 때 섞이는 공백·줄바꿈 제거
+    return (os.environ.get("TELEGRAM_BOT_TOKEN", "").strip(),
+            os.environ.get("TELEGRAM_CHAT_ID", "").strip())
+
+
 def _telegram(title: str, body: str) -> bool:
-    tok, chat = os.environ.get("TELEGRAM_BOT_TOKEN"), os.environ.get("TELEGRAM_CHAT_ID")
+    tok, chat = _telegram_creds()
     if not (tok and chat):
         return False
     r = requests.post(f"https://api.telegram.org/bot{tok}/sendMessage",
                       json={"chat_id": chat, "text": f"{title}\n\n{body}", "disable_web_page_preview": True},
                       timeout=30)
     if not r.ok:
-        log.warning("텔레그램 전송 실패 %s %s", r.status_code, r.text[:200])
+        hint = {404: "봇 토큰이 틀림 (TELEGRAM_BOT_TOKEN 확인)",
+                401: "봇 토큰이 틀림 (TELEGRAM_BOT_TOKEN 확인)",
+                400: "chat_id 확인 또는 봇 대화방에서 START 를 눌렀는지 확인",
+                403: "봇이 차단됨 (봇 대화방에서 차단 해제 후 START)"}.get(r.status_code, "")
+        log.warning("텔레그램 전송 실패 %s %s %s", r.status_code, r.text[:200], hint)
     return r.ok
+
+
+def telegram_test() -> bool:
+    """연결 테스트 메시지 한 통을 보낸다."""
+    tok, chat = _telegram_creds()
+    if not (tok and chat):
+        log.warning("텔레그램 시크릿(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)이 없음")
+        return False
+    ok = _telegram("매크로 모니터 연결 테스트", "이 메시지가 보이면 텔레그램 알림이 정상입니다.")
+    log.info("텔레그램 테스트 %s", "성공" if ok else "실패")
+    return ok
 
 
 def send(rows: list[dict], cfg: dict, now, store) -> None:

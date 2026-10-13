@@ -10,6 +10,11 @@ on:
     # 참고: GitHub 스케줄은 혼잡 시 수 분~수십 분 늦게 시작될 수 있다.
   # 수동 실행. main 이 아닌 브랜치에서 돌리면 시험 실행만 한다 (커밋·게시·알림 없음, 결과물은 Artifact)
   workflow_dispatch:
+    inputs:
+      telegram_test:
+        description: "텔레그램 연결 테스트 메시지 보내기"
+        type: boolean
+        default: false
 
 permissions:
   contents: write   # data/macro.db 커밋
@@ -41,6 +46,13 @@ jobs:
 
       - name: 테스트
         run: python -m pytest -q
+
+      - name: 텔레그램 연결 테스트
+        if: inputs.telegram_test
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m macro_monitor.main --telegram-test || echo "::warning::텔레그램 테스트 실패 (로그 확인)"
 
       - name: 수집 · 감지 · 리포트 · 알림
         id: monitor
