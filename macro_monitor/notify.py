@@ -1,4 +1,4 @@
-"""플래그 알림: GitHub 이슈(기본) + 텔레그램(시크릿이 있을 때).
+"""알림: GitHub 이슈(새 플래그가 있을 때) + 텔레그램(시크릿이 있을 때, 기본은 매 실행 요약).
 
 같은 지표·같은 관측일·같은 플래그 조합은 한 번만 알린다 (하루 2회 실행, 주간 지표 중복 방지).
 """
@@ -88,6 +88,30 @@ def telegram_test() -> bool:
     return ok
 
 
+def build_summary(rows: list[dict], new_rows: list[dict], now) -> tuple[str, str]:
+    """매 실행 요약. 새 플래그는 내용 전체, 기존 플래그는 지표 이름만 적는다."""
+    n_ok = sum(1 for r in rows if r["fetch"]["ok"])
+    failed = [r["ind"]["name"] for r in rows if not r["fetch"]["ok"]]
+    flagged = [r for r in rows if r["res"].flags]
+    new_ids = {r["ind"]["id"] for r in new_rows}
+    title = (f"매크로 모니터 {now:%m-%d %H:%M} KST · 수집 {n_ok}/{len(rows)} · "
+             + (f"새 플래그 {len(new_rows)}개" if new_rows else "새 플래그 없음"))
+    parts = []
+    if new_rows:
+        parts.append("[새 플래그]\n" + "\n".join(f"- {summary_line(r['ind'], r['res'])}" for r in new_rows))
+    rest = [r["ind"]["name"] for r in flagged if r["ind"]["id"] not in new_ids]
+    if rest:
+        parts.append(f"[이전부터 이어지는 플래그 {len(rest)}개]\n" + ", ".join(rest))
+    if not flagged:
+        parts.append("현재 플래그 없음")
+    if failed:
+        parts.append(f"[수집 오류 {len(failed)}개]\n" + ", ".join(failed))
+    url = pages_url()
+    if url:
+        parts.append(f"대시보드: {url}")
+    return title, "\n\n".join(parts)
+
+
 def send(rows: list[dict], cfg: dict, now, store) -> None:
     new_rows = []
     for row in rows:
@@ -97,17 +121,23 @@ def send(rows: list[dict], cfg: dict, now, store) -> None:
         codes = ",".join(sorted(f.code for f in res.flags))
         if not store.already_alerted(res.indicator_id, str(res.last_date), codes):
             new_rows.append(row)
-    if not new_rows:
-        log.info("새 플래그 없음: 알림 생략")
-        return
 
-    title, body = build_message(new_rows, now)
-    log.info("알림 내용\n%s\n%s", title, body)
     sent = False
-    if cfg["alerts"].get("github_issue", True):
+    # GitHub 이슈: 새 플래그가 있을 때만
+    if new_rows and cfg["alerts"].get("github_issue", True):
+        title, body = build_message(new_rows, now)
+        log.info("이슈 알림\n%s\n%s", title, body)
         sent |= _github_issue(title, body, cfg)
+    # 텔레그램: telegram_summary 면 매 실행 요약, 아니면 새 플래그가 있을 때만
     if cfg["alerts"].get("telegram", "auto"):
-        sent |= _telegram(title, body)
+        if cfg["alerts"].get("telegram_summary", True):
+            title, body = build_summary(rows, new_rows, now)
+            log.info("텔레그램 요약\n%s\n%s", title, body)
+            sent |= _telegram(title, body) and bool(new_rows)
+        elif new_rows:
+            sent |= _telegram(*build_message(new_rows, now))
+    if not new_rows:
+        log.info("새 플래그 없음")
     if sent:
         for row in new_rows:
             res = row["res"]
