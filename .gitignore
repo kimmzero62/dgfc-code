@@ -1,0 +1,21 @@
+# 비밀값: API 키는 GitHub Secrets 로만 관리한다
+.env
+.env.*
+*.env
+secrets*
+*.key
+
+# 파이썬
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# 생성물 (Pages 로만 게시)
+site/
+
+# SQLite 부속 파일 (data/macro.db 자체는 커밋한다)
+*.db-journal
+*.db-wal
+*.db-shm

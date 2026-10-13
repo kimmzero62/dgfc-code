@@ -1,0 +1,107 @@
+name: macro-monitor
+
+on:
+  schedule:
+    # GitHub cron 은 UTC 기준이다. 한국 시간(KST) = UTC + 9시간.
+    # 평일 07:30 KST (월~금) = 전날 22:30 UTC (일~목)
+    - cron: "30 22 * * 0-4"
+    # 평일 17:00 KST (월~금) = 같은 날 08:00 UTC (월~금)
+    - cron: "0 8 * * 1-5"
+    # 참고: GitHub 스케줄은 혼잡 시 수 분~수십 분 늦게 시작될 수 있다.
+  # 수동 실행. main 이 아닌 브랜치에서 돌리면 시험 실행만 한다 (커밋·게시·알림 없음, 결과물은 Artifact)
+  workflow_dispatch:
+
+permissions:
+  contents: write   # data/macro.db 커밋
+  issues: write     # 플래그 알림 이슈
+  pages: write
+  id-token: write
+
+concurrency:
+  group: macro-monitor-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      IS_MAIN: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    outputs:
+      rc: ${{ steps.monitor.outputs.rc }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: 테스트
+        run: python -m pytest -q
+
+      - name: 수집 · 감지 · 리포트 · 알림
+        id: monitor
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          if [ "$IS_MAIN" = "true" ]; then
+            python -m macro_monitor.main --out site
+          else
+            python -m macro_monitor.main --out site --no-notify
+          fi
+          echo "rc=$?" >> "$GITHUB_OUTPUT"
+
+      - name: DB 커밋 (다음 실행이 이어받음)
+        if: env.IS_MAIN == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/macro.db
+          if ! git diff --cached --quiet; then
+            git commit -m "data: $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M') KST 수집"
+            git push
+          fi
+
+      - name: Pages 결과물 업로드
+        if: env.IS_MAIN == 'true'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: 시험 실행 결과물 업로드
+        if: env.IS_MAIN != 'true'
+        uses: actions/upload-artifact@v5
+        with:
+          name: preview
+          path: |
+            site
+            data/macro.db
+
+  deploy:
+    needs: run
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  # 전체 수집이 실패했을 때만 워크플로를 실패로 표시한다 (일부 실패는 페이지에 오류로 표시)
+  result:
+    needs: [run, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "monitor exit code: ${{ needs.run.outputs.rc }}"
+          test "${{ needs.run.result }}" = "success"
+          test "${{ needs.run.outputs.rc }}" = "0"

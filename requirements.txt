@@ -1,0 +1,8 @@
+pandas>=2.2
+numpy>=1.26
+requests>=2.31
+pyyaml>=6.0
+yfinance>=0.2.60
+xlrd>=2.0      # 뉴욕연은 ACM .xls
+openpyxl>=3.1
+pytest>=8.0
