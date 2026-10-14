@@ -109,6 +109,8 @@ details { border-top: 1px solid var(--line); padding-top: 14px; }
 summary { cursor: pointer; font-weight: 600; }
 ol.review { margin: 12px 0 0; padding-left: 1.4em; display: grid; gap: 8px; font-size: .92rem; }
 ol.review span { color: var(--muted); }
+.notice { font-size: .9rem; padding: 10px 14px; border-radius: 8px; background: var(--accent-soft); color: var(--ink); }
+.notice b { color: var(--accent); }
 footer { font-size: .8rem; color: var(--muted); line-height: 1.6; }
 @media (max-width: 420px) {
   .sheet { padding: 18px; }
@@ -138,7 +140,7 @@ footer { font-size: .8rem; color: var(--muted); line-height: 1.6; }
         <label><input type="radio" name="role" id="roleEtc" value="양육자"><span>그 밖의 양육자</span></label>
       </div>
     </fieldset>
-    <p class="muted">정답은 없습니다. ‘이래야 한다’보다 실제로 하는 행동에 가까운 보기를 골라 주세요. 보기 순서는 문항마다 섞여 나옵니다.</p>
+    <p class="muted">정답은 없습니다. ‘이래야 한다’보다 실제로 하는 행동에 가까운 보기를 골라 주세요. 보기 순서는 문항마다 섞여 나옵니다. 응답과 결과는 어디에도 저장되지 않으니, 결과가 필요하면 마지막 화면을 캡처해 두세요.</p>
     <div class="row"><span></span><button id="startBtn">검사 시작</button></div>
   </section>
 
@@ -160,6 +162,7 @@ footer { font-size: .8rem; color: var(--muted); line-height: 1.6; }
       <span class="eyebrow" id="resultEyebrow">검사 결과</span>
       <h2 id="resultHead"></h2>
     </div>
+    <p class="notice" role="note"><b>결과는 저장되지 않습니다.</b> 이 화면을 닫거나 새로고침하면 사라지니, 필요하면 지금 화면을 캡처해 두세요.</p>
     <div class="bars" id="bars"></div>
     <div id="types" style="display:grid;gap:18px"></div>
     <details>
