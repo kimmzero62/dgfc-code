@@ -1,0 +1,344 @@
+<title>부모 양육태도 검사</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+/* Layout: 한 장짜리 상담 기록지. 좁은 단 하나, 문항은 한 번에 하나, 결과는 점수 막대 → 유형 해석 순. */
+:root {
+  --bg: #f3f5f2;
+  --paper: #ffffff;
+  --ink: #1f2a26;
+  --muted: #5d6b65;
+  --line: #d9e0db;
+  --accent: #2f6b5a;
+  --accent-soft: #e2eee8;
+  --a: #c47f1c;
+  --b: #9a4a5c;
+  --c: #2f6b5a;
+  --font-display: "Gowun Batang", "Noto Serif KR", serif;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141a18; --paper: #1c2421; --ink: #e6ece9; --muted: #9fb0a8; --line: #2f3a36;
+    --accent: #7cc3a9; --accent-soft: #23332d; --a: #e3a64a; --b: #d68596; --c: #7cc3a9;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141a18; --paper: #1c2421; --ink: #e6ece9; --muted: #9fb0a8; --line: #2f3a36;
+  --accent: #7cc3a9; --accent-soft: #23332d; --a: #e3a64a; --b: #d68596; --c: #7cc3a9;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.65;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 48px;
+}
+main { max-width: 640px; margin: 0 auto; display: grid; gap: 20px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.35; }
+h1 { font-size: 1.9rem; }
+h2 { font-size: 1.35rem; }
+h3 { font-size: 1.1rem; }
+p { margin: 0; }
+.eyebrow { font-size: .78rem; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.sheet { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 24px; display: grid; gap: 18px; }
+.muted { color: var(--muted); font-size: .92rem; }
+.field { display: grid; gap: 6px; }
+.field label, .field legend { font-weight: 600; font-size: .92rem; }
+fieldset { border: 0; padding: 0; margin: 0; }
+input[type="text"] {
+  font: inherit; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%;
+}
+.seg { display: flex; gap: 8px; flex-wrap: wrap; }
+.seg label {
+  border: 1px solid var(--line); border-radius: 999px; padding: 6px 16px; cursor: pointer; font-weight: 500;
+}
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg input:checked + span { color: var(--accent); }
+.seg label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.seg label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+button {
+  font: inherit; font-weight: 600; cursor: pointer; border-radius: 10px; padding: 11px 20px;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--paper);
+}
+button.ghost { background: transparent; color: var(--accent); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+button:focus-visible, .opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: space-between; align-items: center; }
+
+/* 진행 */
+.progress { display: grid; grid-template-columns: repeat(19, 1fr); gap: 3px; }
+.progress i { height: 6px; border-radius: 3px; background: var(--line); }
+.progress i.done { background: var(--accent); opacity: .55; }
+.progress i.now { background: var(--accent); }
+.qnum { font-variant-numeric: tabular-nums; }
+.qtext { font-family: var(--font-display); font-size: 1.2rem; line-height: 1.55; }
+.opts { display: grid; gap: 10px; }
+.opt {
+  text-align: left; font-weight: 400; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; line-height: 1.55;
+  display: grid; grid-template-columns: 22px 1fr; gap: 12px; align-items: start;
+}
+.opt::before {
+  content: ""; width: 18px; height: 18px; margin-top: 3px; border-radius: 50%; border: 2px solid var(--line);
+}
+.opt:hover { border-color: var(--accent); }
+.opt[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.opt[aria-checked="true"]::before { border-color: var(--accent); background: radial-gradient(var(--accent) 45%, transparent 50%); }
+
+/* 결과 */
+.bars { display: grid; gap: 12px; }
+.bar { display: grid; grid-template-columns: 56px 1fr auto; gap: 10px; align-items: center; font-variant-numeric: tabular-nums; }
+.bar .track { height: 14px; background: var(--bg); border-radius: 7px; overflow: hidden; border: 1px solid var(--line); }
+.bar .fill { height: 100%; border-radius: 7px; transition: width .6s ease; }
+.bar b { font-weight: 600; }
+.bar .n { text-align: right; white-space: nowrap; color: var(--muted); }
+.type { display: grid; gap: 10px; padding-top: 18px; border-top: 1px solid var(--line); }
+.type .tag { display: inline-block; font-size: .78rem; font-weight: 600; letter-spacing: .04em; padding: 2px 10px; border-radius: 999px; border: 1px solid currentColor; justify-self: start; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips span { font-size: .85rem; padding: 3px 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); }
+.type.dim h3, .type.dim p { color: var(--muted); }
+details { border-top: 1px solid var(--line); padding-top: 14px; }
+summary { cursor: pointer; font-weight: 600; }
+ol.review { margin: 12px 0 0; padding-left: 1.4em; display: grid; gap: 8px; font-size: .92rem; }
+ol.review span { color: var(--muted); }
+footer { font-size: .8rem; color: var(--muted); line-height: 1.6; }
+@media (max-width: 420px) {
+  .sheet { padding: 18px; }
+  h1 { font-size: 1.6rem; }
+}
+@media (prefers-reduced-motion: reduce) { .bar .fill { transition: none; } }
+</style>
+
+<main>
+  <header style="display:grid;gap:8px">
+    <span class="eyebrow">자가 점검 · 19문항 · 약 5분</span>
+    <h1>부모 양육태도 유형 검사</h1>
+    <p class="muted">자녀와의 일상적인 상황 19가지에서 내가 가장 가깝게 반응하는 쪽을 고르면, 허용적·권위주의적·민주적 양육태도 중 어디에 가까운지 알려 줍니다.</p>
+  </header>
+
+  <!-- 시작 -->
+  <section class="sheet" id="intro">
+    <div class="field">
+      <label for="childName">자녀 이름 <span class="muted">(선택)</span></label>
+      <input type="text" id="childName" placeholder="예: 김하늘" autocomplete="off">
+    </div>
+    <fieldset class="field">
+      <legend>나는 아이의</legend>
+      <div class="seg">
+        <label><input type="radio" name="role" id="roleMom" value="어머니"><span>어머니</span></label>
+        <label><input type="radio" name="role" id="roleDad" value="아버지"><span>아버지</span></label>
+        <label><input type="radio" name="role" id="roleEtc" value="양육자"><span>그 밖의 양육자</span></label>
+      </div>
+    </fieldset>
+    <p class="muted">정답은 없습니다. ‘이래야 한다’보다 실제로 하는 행동에 가까운 보기를 골라 주세요. 보기 순서는 문항마다 섞여 나옵니다.</p>
+    <div class="row"><span></span><button id="startBtn">검사 시작</button></div>
+  </section>
+
+  <!-- 문항 -->
+  <section class="sheet" id="quiz" hidden>
+    <div class="progress" id="progress" aria-hidden="true"></div>
+    <div class="row"><span class="eyebrow qnum" id="qnum"></span><span class="muted" id="who"></span></div>
+    <p class="qtext" id="qtext"></p>
+    <div class="opts" id="opts" role="radiogroup"></div>
+    <div class="row">
+      <button class="ghost" id="prevBtn">이전</button>
+      <button id="nextBtn" disabled>다음</button>
+    </div>
+  </section>
+
+  <!-- 결과 -->
+  <section class="sheet" id="result" hidden>
+    <div style="display:grid;gap:6px">
+      <span class="eyebrow" id="resultEyebrow">검사 결과</span>
+      <h2 id="resultHead"></h2>
+    </div>
+    <div class="bars" id="bars"></div>
+    <div id="types" style="display:grid;gap:18px"></div>
+    <details>
+      <summary>내 응답 다시 보기</summary>
+      <ol class="review" id="review"></ol>
+    </details>
+    <div class="row">
+      <button class="ghost" id="copyBtn">결과 복사</button>
+      <button id="restartBtn">처음부터 다시</button>
+    </div>
+    <p class="muted" id="copyMsg" role="status"></p>
+  </section>
+
+  <footer>
+    이 검사는 Goyetche(2000)가 Baumrind(1991)의 양육태도 이론을 바탕으로 만든 검사를 국내 실정에 맞게 수정·보완한 것으로, 한국심리상담센터 ‘심리학 소식’(2021.10.01) 게시 내용을 옮겼습니다. 결과 해석은 Baumrind(1967), Hetherington &amp; Park(1993)의 연구에 따른 것입니다.
+    자기 이해를 돕는 간이 점검이며 임상 진단이 아닙니다. 양육 고민이 크다면 가까운 가족센터나 상담기관과 이야기해 보세요.
+  </footer>
+</main>
+
+<script>
+// 각 문항의 opts 순서 = 원문 순서. 0번째 → A, 1번째 → B, 2번째 → C.
+const Q = [
+  ["식사시간이 얼마 남지 않았는데 아이가 군것질거리를 먹겠다고 조르자, 시어머님(장모님)께서 먹으라고 허락한다면?",
+   ["그대로 먹게 내버려 둔다.", "안 된다고 하며 못 먹게 한다.", "밥을 먹고 난 다음에 후식으로만 먹게 한다."]],
+  ["6살 난 아이가 청소년들이 볼 수 있는 만화영화를 보겠다고 떼를 쓴다면?",
+   ["보도록 내버려 둔다.", "보지 못하게 TV를 끄거나 채널을 다른 프로그램으로 돌린다.", "아이에게 적합한지 직접 시청한 다음 보게 할지를 결정한다."]],
+  ["아이가 반짇고리(바느질고리)를 뒤집어엎어 온 방 안에 헤쳐 놓았다면?",
+   ["아이니까 그러려니 하고 손수 치운다.", "화를 내며 지금 당장 치우라고 소리친다. (“당장 치워!!!”)", "화를 내지는 않지만 아이에게 치우게 하고, 다 치울 때까지 다른 일을 못 하게 한다."]],
+  ["아이가 내가 아끼던 꽃병을 깨 놓고는 옆집 친구가 그랬다고 거짓말을 했다면?",
+   ["아깝지만 괜찮다고 이야기한다.", "깨뜨린 것과 거짓말한 것 모두에 대해 야단을 치거나 벌을 준다.", "거짓말한 것에 대해 야단치고, 솔직히 말했더라면 꽃병 깬 것으로는 혼내지 않았을 거라고 말해 준다."]],
+  ["7살짜리 아이가 서너 살짜리 아이들과 노는 것을 보았다면?",
+   ["속은 상하지만 그냥 놀게 내버려 둔다.", "당장 놀지 못하게 한다.", "같이 놀 또래 친구들을 찾아보도록 도와준다."]],
+  ["아이가 다른 친구를 때려서 상처를 냈다면?",
+   ["아이들 싸움이려니 하고 그냥 내버려 둔다.", "화가 나서 야단치거나 때론 체벌을 한다.", "왜 싸웠는지 이야기를 나누되, 그래도 싸움은 나쁘다고 따끔히 꾸중한다."]],
+  ["아이가 유치원(학교)에서 내준 숙제를 이번에도 또 잊고 안 해 간다면?",
+   ["선생님께 전화를 해 준다.", "그 자리에서 혼을 내고 다시는 그러지 않도록 다짐해 둔다.", "더 이상 잊지 않도록 타이르고, 다음부터는 알림장을 꼭 확인하도록 도와준다."]],
+  ["아이가 크레용으로 온 방바닥에 낙서를 했다면?",
+   ["낙서할 수 있는 종이를 한 묶음 갖다 주며 웃어넘긴다.", "화를 내며 직접 낙서를 지운 다음, 크레용을 모두 없애 버린다.", "아이 스스로 지우게 하고, 다음부터는 크레용을 가지고 놀 때 세심히 지도한다."]],
+  ["아이가 유치원(학교)에서 친구를 사귀는 데 문제가 있다면?",
+   ["친구들을 불러 파티를 열어 주고 선물을 나눠 주며 우리 아이와 사이좋게 지내 달라고 부탁한다.", "바보처럼 친구 하나도 못 사귄다고 야단을 친다.", "친구 관계에 관해 이야기를 나누고, 친구를 사귈 수 있도록 단체 활동 프로그램 등에 가입시킨다."]],
+  ["내 기분이 언짢은데 아이가 관심을 받고자 보챈다면?",
+   ["언짢은 기분은 뒤로하고 아이에게 관심을 기울인다.", "짜증을 내며 배우자를 불러 떠넘긴다. (“네 아빠(엄마)한테나 가 봐!”)", "기분이 언짢다는 것을 이야기해 주고, 좀 나아지면 함께 놀아 주겠다고 한다."]],
+  ["아이가 블록 쌓기 놀이를 하는데 원하는 대로 잘 되지 않아 짜증을 부린다면?",
+   ["짜증을 멈추게 하려고 옆에서 도와준다.", "짜증 부리지 말라고 야단을 친다.", "짜증 대신 말로 표현하도록 이야기해 주고, 짜증 난 이유에 대해 이야기를 나눈다."]],
+  ["우리 집에는 아이가 지켜야 할 규칙이 얼마나 많습니까?",
+   ["없다.", "규칙이 많고, 규칙마다 어겼을 때 받을 꾸중이나 벌이 정해져 있다.", "건강과 안전을 위한 몇 가지 규칙은 있으나, 그 밖에는 상황에 따라 그때그때 대화로 정한다."]],
+  ["내가 좋아하는 수제비를 특별히 준비했는데 아이가 먹기 싫다고 한다면?",
+   ["귀찮더라도 아이를 위해 밥을 따로 준비한다.", "억지로라도 먹게 한다.", "수제비를 조금이라도 먹어 보게 한 다음, 그래도 싫다면 아이를 위해 밥을 따로 준비한다."]],
+  ["잘 시간이 훨씬 지났는데도 아이가 하던 놀이를 더 하고 자겠다고 고집을 피운다면?",
+   ["놀 만큼 더 놀다 자게 한다.", "당장 가서 자라며 야단치거나 불을 꺼 버린다.", "그 시각부터 20~30분만 더 놀다 자게 한다."]],
+  ["아이가 다른 어른의 말을 잘 따르지 않는다면?",
+   ["아직 어리니까 그러려니 하고 내버려 둔다.", "어쨌든 어른 말을 따르지 않는 건 나쁜 일이라며 화를 내고 야단친다.", "어른에 대한 공경심과 그 어른의 말을 왜 따라야 하는지 이야기를 나눈다."]],
+  ["아이와 함께 쇼핑할 때, 쓸모없어 보이는 것들을 이것저것 사 달라고 조른다면?",
+   ["가능한 한 다 들어준다.", "화를 내면서 아이 손목을 잡고 그 상점을 뜬다.", "안 된다고 딱 잘라 말하고, 쇼핑을 계속하면서 아이에게 적합한 것을 골라 사 준다."]],
+  ["나는 얼마나 자주 아이에게 화를 냅니까?",
+   ["거의 드물다.", "매일같이", "일주일에 한 번 정도"]],
+  ["아이가 자다가 무서운 꿈을 꾸고 내 방에서 자겠다고 온다면?",
+   ["함께 자도록 한다.", "당장 네 방에 가서 자라고 소리 지른다.", "일어나서 아이를 달래 준 다음, 아이 방으로 데려가 재운다."]],
+  ["아이를 생각할 때, 내가 원하는 가정의 분위기는?",
+   ["자유롭고 개방적인 가정", "규율과 질서가 잡힌 가정", "대화와 화합이 있는 가정"]],
+];
+
+const TYPES = {
+  A: { name: "허용적·익애적 양육태도", en: "Permissive", color: "var(--a)",
+    body: ["아이를 마치 성인처럼 대하며 스스로 결정하도록 맡기는 편입니다. 잠자는 시간이나 먹을 음식 같은 규칙을 강요하지 않습니다.",
+           "이것이 지나치면 아이가 나중에 규칙을 따르는 데 어려움을 겪을 수 있고, 아직 감당할 준비가 되지 않은 결과까지 스스로 결정해야 할 수도 있습니다."],
+    traits: ["어른에게 저항·불복종", "공격적", "자기에 대한 낮은 신뢰", "쉽게 화내지만 회복도 빠름", "낮은 성취지향성", "충동적", "약한 자기 통제력", "목표 지향적 활동이 적음", "지배적"] },
+  B: { name: "권위주의적 양육태도", en: "Authoritarian", color: "var(--b)",
+    body: ["아이에게 요구하는 것은 많은 반면, 아이에게 돌려주는 것은 적어 보일 수 있습니다. 가정 분위기가 매우 엄격하게 통제되어 있을 가능성이 큽니다.",
+           "아이는 자라면서 보호받지 못한다는 상실감을 느낄 수 있고, 무언가를 결정할 때 자기 확신이 부족할 수 있습니다."],
+    traits: ["공포와 두려움이 많음", "스트레스를 쉽게 받음", "우울하고 불쾌한 정서", "목적이 없음", "쉽게 초조해짐", "공격적 행동과 무관심한 행동이 번갈아 나타남", "드러나지 않는 배타성"] },
+  C: { name: "민주적·균형 잡힌 양육태도", en: "Democratic / Balanced", color: "var(--c)",
+    body: ["아이에게 요구하는 만큼 아이에게도 돌려주는 부모입니다. 대화로 타협하며 아이가 확신을 갖고 스스로를 조절하는 법을 기르도록 돕습니다. 부모와 자녀의 관계가 존중에 바탕을 두고 있습니다.",
+           "이런 분위기에서 아이는 사회에 적응하는 힘을 자연스럽게 익히고 긍정적인 자아상을 갖게 됩니다."],
+    traits: ["자기 신뢰적", "높은 스트레스 대처 능력", "자기 통제적", "새로운 상황에 대한 흥미와 호기심", "높은 활동 수준", "어른에게 협조적", "쾌활함", "목적지향적", "또래와 잘 어울림", "성취지향적"] },
+};
+const KEYS = ["A", "B", "C"];
+
+const $ = id => document.getElementById(id);
+let answers = new Array(Q.length).fill(null); // 각 원소: 0|1|2 (원문 보기 인덱스)
+let orders = [];
+let cur = 0;
+
+function shuffle(n) {
+  const a = [...Array(n).keys()];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+function esc(s) { return s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function show(id) { ["intro", "quiz", "result"].forEach(s => $(s).hidden = s !== id); window.scrollTo({ top: 0 }); }
+function who() {
+  const name = $("childName").value.trim();
+  const role = document.querySelector('input[name="role"]:checked')?.value;
+  return [name && `${name}의`, role].filter(Boolean).join(" ");
+}
+
+function renderQ() {
+  const [text, opts] = Q[cur];
+  $("qnum").textContent = `문항 ${cur + 1} / ${Q.length}`;
+  $("who").textContent = who();
+  $("qtext").textContent = text;
+  $("progress").innerHTML = Q.map((_, i) =>
+    `<i class="${i === cur ? "now" : answers[i] !== null ? "done" : ""}"></i>`).join("");
+  $("opts").innerHTML = orders[cur].map(k =>
+    `<button class="opt" role="radio" data-k="${k}" aria-checked="${answers[cur] === k}">${esc(opts[k])}</button>`).join("");
+  $("prevBtn").disabled = cur === 0;
+  $("nextBtn").disabled = answers[cur] === null;
+  $("nextBtn").textContent = cur === Q.length - 1 ? "결과 보기" : "다음";
+}
+
+$("opts").addEventListener("click", e => {
+  const b = e.target.closest(".opt"); if (!b) return;
+  answers[cur] = +b.dataset.k;
+  renderQ();
+  // 고르면 잠시 뒤 다음 문항으로 넘김 (그사이 이동했으면 넘기지 않음)
+  const at = cur;
+  if (cur < Q.length - 1) setTimeout(() => { if (cur === at) { cur++; renderQ(); } }, 260);
+  else $("nextBtn").focus();
+});
+$("prevBtn").onclick = () => { if (cur > 0) { cur--; renderQ(); } };
+$("nextBtn").onclick = () => {
+  if (answers[cur] === null) return;
+  if (cur < Q.length - 1) { cur++; renderQ(); } else renderResult();
+};
+$("startBtn").onclick = () => {
+  answers = new Array(Q.length).fill(null);
+  orders = Q.map(q => shuffle(q[1].length));
+  cur = 0; renderQ(); show("quiz");
+};
+$("restartBtn").onclick = () => show("intro");
+
+function score() {
+  const s = { A: 0, B: 0, C: 0 };
+  answers.forEach(k => { if (k !== null) s[KEYS[k]]++; });
+  return s;
+}
+
+function renderResult() {
+  const s = score();
+  const max = Math.max(s.A, s.B, s.C);
+  const top = KEYS.filter(k => s[k] === max);
+  const label = who();
+  $("resultEyebrow").textContent = label ? `검사 결과 · ${label}` : "검사 결과";
+  $("resultHead").textContent = top.length === 1
+    ? `${top[0]}형, ${TYPES[top[0]].name}에 가장 가깝습니다`
+    : `${top.join("·")}형이 같은 점수입니다. 두 유형을 모두 읽어 보세요`;
+  $("bars").innerHTML = KEYS.map(k => `
+    <div class="bar">
+      <b style="color:${TYPES[k].color}">${k}형</b>
+      <div class="track"><div class="fill" style="width:0;background:${TYPES[k].color}" data-w="${(s[k] / Q.length) * 100}"></div></div>
+      <span class="n">${s[k]} / ${Q.length}</span>
+    </div>`).join("");
+  requestAnimationFrame(() => requestAnimationFrame(() =>
+    document.querySelectorAll(".fill").forEach(f => f.style.width = f.dataset.w + "%")));
+  const order = [...top, ...KEYS.filter(k => !top.includes(k))];
+  $("types").innerHTML = order.map(k => {
+    const t = TYPES[k], main = top.includes(k);
+    return `<article class="type${main ? "" : " dim"}">
+      <span class="tag" style="color:${t.color}">${k}형 · ${t.en}${main ? " · 내 유형" : ""}</span>
+      <h3>${t.name}</h3>
+      ${main ? t.body.map(p => `<p>${p}</p>`).join("") : `<p>${t.body[0]}</p>`}
+      ${main ? `<p class="muted">이런 양육 환경에서 자란 아이에게 나타날 수 있는 특성</p>
+        <div class="chips">${t.traits.map(x => `<span>${x}</span>`).join("")}</div>` : ""}
+    </article>`;
+  }).join("");
+  $("review").innerHTML = Q.map((q, i) =>
+    `<li>${esc(q[0])}<br><span>${KEYS[answers[i]]}형 · ${esc(q[1][answers[i]])}</span></li>`).join("");
+  $("copyMsg").textContent = "";
+  show("result");
+}
+
+$("copyBtn").onclick = () => {
+  const s = score(), max = Math.max(s.A, s.B, s.C);
+  const top = KEYS.filter(k => s[k] === max);
+  const text = [`[부모 양육태도 유형 검사]${who() ? " " + who() : ""}`,
+    `A형(허용적) ${s.A}점 · B형(권위주의적) ${s.B}점 · C형(민주적) ${s.C}점`,
+    `결과: ${top.map(k => `${k}형 ${TYPES[k].name}`).join(", ")}`].join("\n");
+  const done = () => $("copyMsg").textContent = "결과를 복사했습니다.";
+  const fail = () => $("copyMsg").textContent = text;
+  try { navigator.clipboard.writeText(text).then(done, fail); } catch { fail(); }
+};
+</script>
