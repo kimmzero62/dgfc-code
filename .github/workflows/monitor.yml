@@ -3,11 +3,18 @@ name: macro-monitor
 on:
   schedule:
     # GitHub cron 은 UTC 기준이다. 한국 시간(KST) = UTC + 9시간.
-    # 평일 07:30 KST (월~금) = 전날 22:30 UTC (일~목)
-    - cron: "30 22 * * 0-4"
-    # 평일 17:00 KST (월~금) = 같은 날 08:00 UTC (월~금)
-    - cron: "0 8 * * 1-5"
-    # 참고: GitHub 스케줄은 혼잡 시 수 분~수십 분 늦게 시작될 수 있다.
+    # GitHub 스케줄은 시각을 보장하지 않고, 정각·30분에는 특히 크게 밀리거나 빠진다.
+    # 그래서 혼잡한 분을 피하고 같은 시간대에 예비 실행을 두 번 더 둔다.
+    # 앞선 실행이 그 슬롯(아침/저녁)을 이미 끝냈으면 예비 실행은 gate 단계에서 바로 끝난다.
+    #
+    # 아침 슬롯 (월~금 KST = 전날 일~목 UTC)
+    - cron: "7 22 * * 0-4"    # 07:07 KST = 22:07 UTC 전날
+    - cron: "37 22 * * 0-4"   # 07:37 KST = 22:37 UTC 전날 (예비)
+    - cron: "17 23 * * 0-4"   # 08:17 KST = 23:17 UTC 전날 (예비)
+    # 저녁 슬롯 (월~금 KST = 같은 날 월~금 UTC)
+    - cron: "47 7 * * 1-5"    # 16:47 KST = 07:47 UTC
+    - cron: "17 8 * * 1-5"    # 17:17 KST = 08:17 UTC (예비)
+    - cron: "57 8 * * 1-5"    # 17:57 KST = 08:57 UTC (예비)
   # 수동 실행. main 이 아닌 브랜치에서 돌리면 시험 실행만 한다 (커밋·게시·알림 없음, 결과물은 Artifact)
   workflow_dispatch:
     inputs:
@@ -27,7 +34,21 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # 이미 끝난 슬롯이면 예비 스케줄 실행을 건너뛴다 (수동 실행은 항상 진행)
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}   # 이벤트 시점이 아닌 최신 커밋 (직전 실행의 DB 반영)
+      - id: check
+        run: python3 -m macro_monitor.slot check --event "${{ github.event_name }}"
+
   run:
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -36,6 +57,8 @@ jobs:
       rc: ${{ steps.monitor.outputs.rc }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}   # 최신 커밋에서 시작해야 DB 커밋 push 가 충돌하지 않는다
 
       - uses: actions/setup-python@v6
         with:
@@ -98,7 +121,7 @@ jobs:
 
   deploy:
     needs: run
-    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    if: needs.run.result == 'success' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -109,11 +132,14 @@ jobs:
 
   # 전체 수집이 실패했을 때만 워크플로를 실패로 표시한다 (일부 실패는 페이지에 오류로 표시)
   result:
-    needs: [run, deploy]
+    needs: [gate, run, deploy]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - run: |
+      - if: needs.gate.outputs.skip == 'true'
+        run: echo "이미 끝난 슬롯이라 건너뜀"
+      - if: needs.gate.outputs.skip != 'true'
+        run: |
           echo "monitor exit code: ${{ needs.run.outputs.rc }}"
           test "${{ needs.run.result }}" = "success"
           test "${{ needs.run.outputs.rc }}" = "0"
