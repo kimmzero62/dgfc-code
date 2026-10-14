@@ -3,23 +3,25 @@ name: macro-monitor
 on:
   schedule:
     # GitHub cron 은 UTC 기준이다. 한국 시간(KST) = UTC + 9시간.
-    # GitHub 스케줄은 시각을 보장하지 않고, 정각·30분에는 특히 크게 밀리거나 빠진다.
-    # 그래서 혼잡한 분을 피하고 같은 시간대에 예비 실행을 두 번 더 둔다.
-    # 앞선 실행이 그 슬롯(아침/저녁)을 이미 끝냈으면 예비 실행은 gate 단계에서 바로 끝난다.
+    # 주 실행은 Claude 예약 작업(Routine)이 평일 07:27·16:57 KST 에 workflow_dispatch(slot_check=true)로 누른다.
+    # GitHub 스케줄은 시각을 보장하지 않아(이 저장소에서 수 시간 지연·누락 확인) 아래는 예비용이다.
+    # 그 슬롯(아침/저녁)이 이미 끝났으면 gate 단계에서 바로 끝나므로 중복 알림은 없다.
     #
-    # 아침 슬롯 (월~금 KST = 전날 일~목 UTC)
-    - cron: "7 22 * * 0-4"    # 07:07 KST = 22:07 UTC 전날
-    - cron: "37 22 * * 0-4"   # 07:37 KST = 22:37 UTC 전날 (예비)
-    - cron: "17 23 * * 0-4"   # 08:17 KST = 23:17 UTC 전날 (예비)
-    # 저녁 슬롯 (월~금 KST = 같은 날 월~금 UTC)
-    - cron: "47 7 * * 1-5"    # 16:47 KST = 07:47 UTC
-    - cron: "17 8 * * 1-5"    # 17:17 KST = 08:17 UTC (예비)
-    - cron: "57 8 * * 1-5"    # 17:57 KST = 08:57 UTC (예비)
+    # 아침 예비 (월~금 KST = 전날 일~목 UTC)
+    - cron: "47 22 * * 0-4"   # 07:47 KST = 22:47 UTC 전날
+    - cron: "27 23 * * 0-4"   # 08:27 KST = 23:27 UTC 전날
+    # 저녁 예비 (월~금 KST = 같은 날 월~금 UTC)
+    - cron: "17 8 * * 1-5"    # 17:17 KST = 08:17 UTC
+    - cron: "47 8 * * 1-5"    # 17:47 KST = 08:47 UTC
   # 수동 실행. main 이 아닌 브랜치에서 돌리면 시험 실행만 한다 (커밋·게시·알림 없음, 결과물은 Artifact)
   workflow_dispatch:
     inputs:
       telegram_test:
         description: "텔레그램 연결 테스트 메시지 보내기"
+        type: boolean
+        default: false
+      slot_check:
+        description: "이미 끝난 슬롯이면 건너뛰기 (예약 작업용, 직접 실행할 때는 끄기)"
         type: boolean
         default: false
 
@@ -44,7 +46,7 @@ jobs:
         with:
           ref: ${{ github.ref_name }}   # 이벤트 시점이 아닌 최신 커밋 (직전 실행의 DB 반영)
       - id: check
-        run: python3 -m macro_monitor.slot check --event "${{ github.event_name }}"
+        run: python3 -m macro_monitor.slot check --event "${{ inputs.slot_check && 'schedule' || github.event_name }}"
 
   run:
     needs: gate
