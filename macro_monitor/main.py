@@ -10,7 +10,7 @@ from pathlib import Path
 
 import yaml
 
-from . import detect, notify, report
+from . import detect, notify, report, slot
 from .sources import FETCHERS
 from .storage import Store
 
@@ -83,9 +83,11 @@ def main(argv=None) -> int:
     if not args.no_notify:
         notify.send(rows, cfg, now, store)
 
+    n_ok = sum(1 for v in fetch_status.values() if v["ok"])
+    if n_ok:
+        slot.mark_done(store.conn, slot.slot_of(now))  # 예비 스케줄이 같은 슬롯을 다시 돌지 않게
     store.close()
 
-    n_ok = sum(1 for v in fetch_status.values() if v["ok"])
     log.info("수집 성공 %d / %d", n_ok, len(fetch_status))
     if n_ok == 0:
         log.error("모든 지표 수집 실패")
