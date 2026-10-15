@@ -16,7 +16,7 @@
 
 defaults:
   z_threshold: 2.0            # |1년 z-score| 가 이 값 이상이면 플래그
-  change_z_threshold: 3.0     # 일간·5일 변화가 과거 1년 변화 분포 대비 |z| 이 값 이상이면 플래그
+  change_z_threshold: 2.0     # 일간·5일 변화가 과거 1년 변화 분포 대비 |z| 이 값 이상이면 플래그
   flag_new_high_low: true     # 1년 고점·저점 갱신 시 플래그
   lookback_days: 365          # z-score·백분위·고저 계산 창 (달력일)
   min_history_days: 180       # 이 기간보다 이력이 짧으면 감지하지 않고 '데이터 부족' 표시
