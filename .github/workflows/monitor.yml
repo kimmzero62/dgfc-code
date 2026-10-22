@@ -95,6 +95,11 @@ jobs:
           fi
           echo "rc=$?" >> "$GITHUB_OUTPUT"
 
+      # 패밀리넷 신청 도우미(정적 페이지)도 같은 Pages 에 싣는다 → <Pages 주소>/fnet_guide/
+      # Pages 는 배포할 때마다 통째로 바뀌므로 매 실행 site 에 넣어야 빠지지 않는다
+      - name: 패밀리넷 신청 도우미 함께 싣기
+        run: mkdir -p site && cp -r fnet_guide site/fnet_guide
+
       - name: DB 커밋 (다음 실행이 이어받음)
         if: env.IS_MAIN == 'true'
         run: |
