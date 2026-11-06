@@ -22,13 +22,15 @@ SCHEMA = "CREATE TABLE IF NOT EXISTS run_slots (slot TEXT PRIMARY KEY, completed
 def slot_of(now: datetime) -> str:
     """KST 기준 슬롯 이름.
 
-    05:00~11:59 → 그날 morning, 12:00~23:59 → 그날 evening,
+    05:00~15:59 → 그날 morning, 16:00~23:59 → 그날 evening,
     00:00~04:59 → 전날 evening (저녁 스케줄이 자정을 넘겨 늦게 도는 경우)
+
+    경계가 16시인 이유: GitHub 예비 스케줄이 몇 시간씩 늦게 돌 때 아침 몫이 저녁 슬롯을 차지하지 않게.
     """
     t = now.astimezone(KST)
     if t.hour < 5:
         return f"{(t - timedelta(days=1)):%Y-%m-%d}-evening"
-    return f"{t:%Y-%m-%d}-{'morning' if t.hour < 12 else 'evening'}"
+    return f"{t:%Y-%m-%d}-{'morning' if t.hour < 16 else 'evening'}"
 
 
 def is_done(conn: sqlite3.Connection, slot: str) -> bool:
