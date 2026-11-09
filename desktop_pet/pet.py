@@ -28,6 +28,7 @@ WALK_SPEED = 70          # 초당 이동 픽셀 (크기 '보통' 기준)
 SLEEP_AFTER_SEC = 120    # 이 시간 동안 건드리지 않으면 잠듦
 REMIND_EVERY_MIN = 50    # 쉬는 시간 알림 간격(분). 0이면 끔
 TICK_MS = 33
+REMOVE_HEARTS = True     # 그림에 떠 있는 분홍 하트 지우기
 
 # 9프레임 GIF의 프레임별 동작 (첨부한 토끼 GIF 기준)
 POSE = {"idle": 0, "wave": 1, "jump": 2, "love": 3, "wiggle": 4,
@@ -65,11 +66,61 @@ def _drop_thin_rows(img: Image.Image, max_h: int = 3) -> Image.Image:
     return out
 
 
+def _is_pink(c) -> bool:
+    r, g, b, a = c
+    return a > 0 and r > 200 and g < 170 and b < 200
+
+
+def _drop_hearts(img: Image.Image, max_px: int = 3000) -> Image.Image:
+    """몸통과 떨어져 떠 있는 분홍 덩어리(하트)를 지운다.
+    볼터치·귀 안쪽처럼 몸통에 붙은 분홍은 그대로 둔다."""
+    w, h = img.size
+    out = img.copy()
+    px = out.load()
+    state = bytearray(w * h)  # 0=미방문 1=방문 2=몸통(큰 덩어리)
+    for sy in range(h):
+        for sx in range(w):
+            if state[sy * w + sx] or not _is_pink(px[sx, sy]):
+                continue
+            stack, region, big = [(sx, sy)], [], False
+            state[sy * w + sx] = 1
+            while stack:
+                x, y = stack.pop()
+                region.append((x, y))
+                if len(region) > max_px:
+                    big = True
+                    break
+                for nx in (x - 1, x, x + 1):
+                    for ny in (y - 1, y, y + 1):
+                        if not (0 <= nx < w and 0 <= ny < h) or px[nx, ny][3] == 0:
+                            continue
+                        s = state[ny * w + nx]
+                        if s == 2:
+                            big = True
+                        elif s == 0:
+                            state[ny * w + nx] = 1
+                            stack.append((nx, ny))
+                if big:
+                    break
+            if big:
+                for x, y in region + stack:
+                    state[y * w + x] = 2
+                continue
+            pink = sum(1 for p in region if _is_pink(px[p]))
+            if pink >= 0.8 * len(region):
+                for p in region:
+                    px[p] = (0, 0, 0, 0)
+    return out
+
+
 def load_frames(path: Path) -> tuple[list[Image.Image], list[int]]:
     im = Image.open(path)
     frames, durations = [], []
     for fr in ImageSequence.Iterator(im):
-        frames.append(_drop_thin_rows(fr.convert("RGBA")))
+        img = _drop_thin_rows(fr.convert("RGBA"))
+        if REMOVE_HEARTS:
+            img = _drop_hearts(img)
+        frames.append(img)
         durations.append(max(60, fr.info.get("duration", 200)))
     return frames, durations
 
