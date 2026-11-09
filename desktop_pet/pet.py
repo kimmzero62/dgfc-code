@@ -1,7 +1,7 @@
 """바탕화면 펫 — 움직이는 GIF 한 장으로 화면 위를 돌아다니는 펫을 띄운다.
 
-실행:  python pet.py                (assets/pet.gif 사용)
-       python pet.py 다른그림.gif   (다른 GIF 사용)
+실행:  python pet.py                  (assets 폴더의 GIF마다 펫 하나씩)
+       python pet.py a.gif b.gif      (지정한 GIF만)
 
 조작:  클릭 = 반응 / 드래그 = 옮기기(놓으면 떨어짐) / 오른쪽 클릭 = 메뉴
 """
@@ -19,7 +19,8 @@ from PySide6.QtGui import (QAction, QActionGroup, QColor, QFont, QIcon, QImage,
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QWidget
 
 HERE = Path(__file__).resolve().parent
-DEFAULT_GIF = HERE / "assets" / "pet.gif"
+ASSETS = HERE / "assets"
+DEFAULT_GIF = ASSETS / "pet.gif"  # 예전 방식 호환
 
 # ── 설정 ────────────────────────────────────────────────
 SCALES = {"작게": 0.30, "보통": 0.42, "크게": 0.60}
@@ -30,7 +31,9 @@ REMIND_EVERY_MIN = 50    # 쉬는 시간 알림 간격(분). 0이면 끔
 TICK_MS = 33
 REMOVE_HEARTS = True     # 그림에 떠 있는 분홍 하트 지우기
 
-# 9프레임 GIF의 프레임별 동작 (첨부한 토끼 GIF 기준)
+# 9프레임 GIF의 프레임별 동작 (우사기 GIF 기준)
+# 파일 이름이 아래 중 하나일 때만 동작별로 나눠 쓰고, 나머지 GIF는 통째로 반복 재생한다.
+POSED_NAMES = {"pet", "usagi", "우사기"}
 POSE = {"idle": 0, "wave": 1, "jump": 2, "love": 3, "wiggle": 4,
         "surprise": 5, "back": 6, "sleep": 7, "shy": 8}
 
@@ -136,18 +139,22 @@ class Pet(QWidget):
     TOP_SPACE = 80  # 말풍선·점프용 위쪽 여백
     SIDE = 35       # 말풍선이 잘리지 않게 양옆 여백
 
-    def __init__(self, gif: Path):
+    def __init__(self, gif: Path, index: int = 0):
         super().__init__(None, Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowTitle("바탕화면 펫")
 
         self.raw, self.durations = load_frames(gif)
-        self.posed = len(self.raw) == len(POSE)  # 9프레임이면 동작별로, 아니면 그냥 반복 재생
+        self.name = gif.stem
+        self.index = index
+        self.posed = (len(self.raw) == len(POSE)
+                      and gif.stem.lower() in POSED_NAMES)
         # 발바닥 아래 빈 공간 → 바닥에 딱 붙이기 위해
         self.foot_gap_raw = self.raw[0].height - max(
             (f.getbbox() or (0, 0, 0, f.height))[3] for f in self.raw)
 
         self.settings = QSettings("desktop_pet", "pet")
+        self.settings.beginGroup(self.name)  # 펫마다 크기·설정 따로 저장
         self.scale_name = self.settings.value("scale", DEFAULT_SCALE)
         if self.scale_name not in SCALES:
             self.scale_name = DEFAULT_SCALE
@@ -213,7 +220,8 @@ class Pet(QWidget):
 
     def _place_initial(self):
         area = QApplication.primaryScreen().availableGeometry()
-        x = area.left() + int(area.width() * 0.75)
+        frac = (0.75 - 0.22 * self.index) % 0.9 + 0.05  # 펫끼리 겹치지 않게
+        x = area.left() + int(area.width() * frac) - self.width() // 2
         self.move(x, area.bottom() + 1 - self.height() + self.foot_gap)
         self.fx = float(self.x())
 
@@ -435,7 +443,7 @@ class Pet(QWidget):
 
         if QSystemTrayIcon.isSystemTrayAvailable():
             self.tray = QSystemTrayIcon(QIcon(self.pix[0]), self)
-            self.tray.setToolTip("바탕화면 펫")
+            self.tray.setToolTip(f"바탕화면 펫 - {self.name}")
             self.tray.setContextMenu(m)
             self.tray.activated.connect(
                 lambda r: self._recall() if r == QSystemTrayIcon.Trigger else None)
@@ -463,14 +471,19 @@ class Pet(QWidget):
 
 
 def main():
-    gif = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_GIF
-    if not gif.exists():
-        sys.exit(f"그림 파일이 없습니다: {gif}\n"
-                 f"움직이는 GIF를 {DEFAULT_GIF} 로 저장하거나, 경로를 인자로 주세요.")
+    if len(sys.argv) > 1:
+        gifs = [Path(a) for a in sys.argv[1:]]
+    else:
+        gifs = sorted(ASSETS.glob("*.gif"))  # assets 폴더의 GIF마다 펫 하나씩
+    missing = [g for g in gifs if not g.exists()]
+    if not gifs or missing:
+        sys.exit(f"그림 파일이 없습니다: {missing or ASSETS}\n"
+                 f"움직이는 GIF를 {ASSETS} 폴더에 넣거나, 경로를 인자로 주세요.")
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
-    pet = Pet(gif)
-    pet.show()
+    pets = [Pet(g, i) for i, g in enumerate(gifs)]
+    for p in pets:
+        p.show()
     sys.exit(app.exec())
 
 
