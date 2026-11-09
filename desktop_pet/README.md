@@ -7,7 +7,7 @@
 1. Python 3.10 이상 설치 (Windows는 설치할 때 **Add python.exe to PATH** 체크)
 2. 이 폴더에서:
    ```
-   pip install -r requirements.txt
+   py -m pip install -r requirements.txt
    ```
 3. 펫 그림(움직이는 GIF)을 `assets/pet.gif` 로 저장
    - 그림 파일은 저작권 때문에 저장소에 올리지 않습니다(`.gitignore` 처리).
@@ -15,7 +15,7 @@
 ## 실행
 
 - Windows: `펫실행.bat` 더블클릭 (검은 창 없이 뜸)
-- Mac/직접 실행: `python pet.py` (다른 그림: `python pet.py 경로/그림.gif`)
+- 직접 실행: Windows `py pet.py` / Mac `python3 pet.py` (다른 그림: `python pet.py 경로/그림.gif`)
 - PC 켤 때 자동 실행(Windows): `Win+R` → `shell:startup` → 열린 폴더에 `펫실행.bat` 바로가기 넣기
 
 ## 조작
