@@ -17,7 +17,7 @@
 ## 실행
 
 - Windows: `펫실행.bat` 더블클릭 (검은 창 없이 뜸)
-- 직접 실행: Windows `py pet.py` / Mac `python3 pet.py` (특정 GIF만: `py pet.py assets\\usagi.gif`)
+- 직접 실행: Windows `py pet.py` / Mac `python3 pet.py` (특정 GIF만: `py pet.py assets\usagi.gif`)
 - PC 켤 때 자동 실행(Windows): `Win+R` → `shell:startup` → 열린 폴더에 `펫실행.bat` 바로가기 넣기
 
 ## 조작
