@@ -34,12 +34,13 @@ POSE = {"idle": 0, "wave": 1, "jump": 2, "love": 3, "wiggle": 4,
         "surprise": 5, "back": 6, "sleep": 7, "shy": 8}
 
 CLICK_LINES = {
-    "love": ["좋아♥", "헤헤 좋아!", "또 눌러줘♥"],
-    "shy": ["부끄러워…", "헤헤", "히히"],
-    "wave": ["안녕!", "반가워!", "오늘도 화이팅!"],
-    "jump": ["야호!", "깡총!", "신난다!"],
+    # 말은 안 하고 소리만 냄
+    "love": ["우나♥", "우나…♥"],
+    "shy": ["우나…", "뿌릣"],
+    "wave": ["이야!", "우나!"],
+    "jump": ["이야!!", "이야하!"],
 }
-REMIND_LINES = ["잠깐 쉬어가자!", "물 한 잔 마셨어?", "스트레칭 하자~", "어깨 펴기!"]
+REMIND_LINES = ["뿌릣!", "우나!", "이야!"]  # 쉬는 시간 신호 (소리만)
 
 
 # ── 프레임 불러오기 ─────────────────────────────────────
@@ -320,7 +321,7 @@ class Pet(QWidget):
             self.dragging = True
             self.calm_t = 0
             self.state, self.pose, self.offset_y = "drag", "surprise", 0
-            self.say("으앗!", 1.5)
+            self.say("야다!!", 1.5)
         if self.dragging:
             self.move(g - self.drag_off)
             self.fx = float(self.x())
@@ -339,7 +340,7 @@ class Pet(QWidget):
 
     def react(self):
         if self.state == "sleep":
-            self.set_state("pose", "surprise", 1.5, "깜짝이야!")
+            self.set_state("pose", "surprise", 1.5, "하?")
             return
         kind = random.choice(list(CLICK_LINES))
         line = random.choice(CLICK_LINES[kind])
@@ -375,7 +376,7 @@ class Pet(QWidget):
         m.addSeparator()
         m.addAction("재우기", lambda: self.set_state("sleep", "sleep", 1e9))
         m.addAction("깨우기", lambda: (setattr(self, "calm_t", 0),
-                                      self.set_state("pose", "wave", 1.5, "잘 잤다!")))
+                                      self.set_state("pose", "wave", 1.5, "하?")))
         m.addAction("화면 가운데로", self._recall)
         m.addSeparator()
         m.addAction("종료", QApplication.quit)
@@ -406,7 +407,7 @@ class Pet(QWidget):
         self.move(self.x(), self.ground_y())
         self.fx = float(self.x())
         self.calm_t = 0
-        self.set_state("pose", "wave", 1.5, "여기 있어!")
+        self.set_state("pose", "wave", 1.5, "이야!")
         self.raise_()
 
 
