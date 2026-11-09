@@ -12,7 +12,7 @@ import random
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageSequence
+from PIL import Image, ImageChops, ImageFilter, ImageSequence
 from PySide6.QtCore import QPoint, QRectF, QSettings, Qt, QTimer
 from PySide6.QtGui import (QAction, QActionGroup, QColor, QFont, QIcon, QImage,
                            QPainter, QPainterPath, QPen, QPixmap, QTransform)
@@ -31,20 +31,55 @@ REMIND_EVERY_MIN = 50    # 쉬는 시간 알림 간격(분). 0이면 끔
 TICK_MS = 33
 REMOVE_HEARTS = True     # 그림에 떠 있는 분홍 하트 지우기
 
-# 9프레임 GIF의 프레임별 동작 (우사기 GIF 기준)
-# 파일 이름이 아래 중 하나일 때만 동작별로 나눠 쓰고, 나머지 GIF는 통째로 반복 재생한다.
-POSED_NAMES = {"pet", "usagi", "우사기"}
-POSE = {"idle": 0, "wave": 1, "jump": 2, "love": 3, "wiggle": 4,
-        "surprise": 5, "back": 6, "sleep": 7, "shy": 8}
+# ── 펫별 설정 ───────────────────────────────────────────
+# poses: 동작 이름 → 프레임 번호(정지) 또는 프레임 목록(반복 재생)
+#   꼭 있어야 하는 동작: idle, walk, jump, surprise, sleep, greet
+# reacts: 클릭했을 때 고르는 반응 (상태, 동작, 소리 목록)
+# moves: 가만히 있다가 가끔 하는 동작
+# sounds: 상황별 소리. 빈 문자열이면 말풍선 없음
+ALL = None  # GIF 프레임 전체를 반복 재생
+MOMO_LOOP = [0, 1, 2, 3, 5, 6, 8]  # 들썩이며 눈 깜빡이는 프레임들
 
-CLICK_LINES = {
-    # 말은 안 하고 소리만 냄
-    "love": ["우나", "우나…"],
-    "shy": ["우나…", "뿌릣"],
-    "wave": ["이야!", "우나!"],
-    "jump": ["이야!!", "이야하!"],
+PROFILES = {
+    "usagi": {
+        "frames": 9,
+        "poses": {"idle": 0, "walk": [0, 4], "greet": 1, "jump": 2, "love": 3,
+                  "wiggle": 4, "surprise": 5, "back": 6, "sleep": 7, "shy": 8},
+        "reacts": [("pose", "love", ["우나", "우나…"]),
+                   ("pose", "shy", ["우나…", "뿌릣"]),
+                   ("pose", "greet", ["이야!", "우나!"]),
+                   ("jump", "jump", ["이야!!", "이야하!"])],
+        "moves": ["wiggle", "back", "greet"],
+        "sounds": {"drag": ["야다!!"], "wake": ["하?"], "recall": ["이야!"],
+                   "remind": ["뿌릣!", "우나!", "이야!"]},
+    },
+    "momonga": {
+        "frames": 9,
+        "size": 0.85,  # 우사기와 키를 맞추기 위한 크기 보정
+        "poses": {"idle": MOMO_LOOP, "walk": MOMO_LOOP, "greet": 4, "jump": 4,
+                  "happy": 4, "calm": 7, "surprise": 0, "sleep": 7},
+        "reacts": [("pose", "happy", [""]),
+                   ("jump", "jump", [""])],
+        "moves": ["happy", "calm"],
+        "sounds": {"drag": [""], "wake": [""], "recall": [""], "remind": [""]},
+    },
+    "default": {  # 그 밖의 GIF: 통째로 반복 재생
+        "frames": None,
+        "poses": {k: ALL for k in ("idle", "walk", "greet", "jump", "surprise", "sleep")},
+        "reacts": [("jump", "jump", [""])],
+        "moves": [],
+        "sounds": {"drag": [""], "wake": [""], "recall": [""], "remind": [""]},
+    },
 }
-REMIND_LINES = ["뿌릣!", "우나!", "이야!"]  # 쉬는 시간 신호 (소리만)
+NAME_ALIASES = {"pet": "usagi", "우사기": "usagi", "모몽가": "momonga", "momo": "momonga"}
+
+
+def profile_for(name: str, n_frames: int) -> dict:
+    key = NAME_ALIASES.get(name.lower(), name.lower())
+    prof = PROFILES.get(key)
+    if prof is None or (prof["frames"] and prof["frames"] != n_frames):
+        return PROFILES["default"]
+    return prof
 
 
 # ── 프레임 불러오기 ─────────────────────────────────────
@@ -116,11 +151,59 @@ def _drop_hearts(img: Image.Image, max_px: int = 3000) -> Image.Image:
     return out
 
 
+def _solid_bg(img: Image.Image):
+    """네 귀퉁이가 같은 불투명 색이면 그 색을 배경색으로 본다."""
+    w, h = img.size
+    cs = [img.getpixel(p) for p in ((0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1))]
+    if any(c[3] < 255 for c in cs):
+        return None
+    r, g, b, _ = cs[0]
+    if all(abs(c[0] - r) + abs(c[1] - g) + abs(c[2] - b) < 30 for c in cs):
+        return (r, g, b)
+    return None
+
+
+def _remove_bg(img: Image.Image, bg, t_in: int = 45) -> Image.Image:
+    """단색 배경을 투명하게. 가장자리는 배경색이 섞인 만큼 반투명으로 풀어 준다."""
+    rgb = img.convert("RGB")
+    diff = ImageChops.difference(rgb, Image.new("RGB", img.size, bg))
+    r, g, b = diff.split()
+    dist = ImageChops.add(ImageChops.add(r, g), b)        # 배경과의 거리(0~255로 잘림)
+    bgmask = dist.point(lambda v: 255 if v < t_in else 0)
+    band = bgmask.filter(ImageFilter.MaxFilter(5))      # 배경 바로 옆 2px 띠
+    out = img.copy()
+    out.putalpha(ImageChops.subtract(Image.new("L", img.size, 255), bgmask))
+    # 가장자리 띠: 흰 테두리와 배경이 섞인 픽셀 → 반투명 + 원래 색 복원
+    full = sum(abs(255 - c) for c in bg) or 1
+    px, bp, mp = out.load(), band.load(), bgmask.load()
+    w, h = img.size
+    for y in range(h):
+        for x in range(w):
+            if not bp[x, y] or mp[x, y]:
+                continue
+            pr, pg, pb, _ = px[x, y]
+            d = abs(pr - bg[0]) + abs(pg - bg[1]) + abs(pb - bg[2])
+            a = min(1.0, d / full)
+            if a < 0.1:
+                px[x, y] = (0, 0, 0, 0)
+            elif a < 1.0:
+                un = [max(0, min(255, round((v - (1 - a) * c) / a)))
+                      for v, c in zip((pr, pg, pb), bg)]
+                px[x, y] = (*un, round(a * 255))
+    return out
+
+
 def load_frames(path: Path) -> tuple[list[Image.Image], list[int]]:
     im = Image.open(path)
     frames, durations = [], []
-    for fr in ImageSequence.Iterator(im):
-        img = _drop_thin_rows(fr.convert("RGBA"))
+    bg = None
+    for i, fr in enumerate(ImageSequence.Iterator(im)):
+        img = fr.convert("RGBA")
+        if i == 0:
+            bg = _solid_bg(img)
+        if bg:
+            img = _remove_bg(img, bg)
+        img = _drop_thin_rows(img)
         if REMOVE_HEARTS:
             img = _drop_hearts(img)
         frames.append(img)
@@ -147,8 +230,7 @@ class Pet(QWidget):
         self.raw, self.durations = load_frames(gif)
         self.name = gif.stem
         self.index = index
-        self.posed = (len(self.raw) == len(POSE)
-                      and gif.stem.lower() in POSED_NAMES)
+        self.prof = profile_for(self.name, len(self.raw))
         # 발바닥 아래 빈 공간 → 바닥에 딱 붙이기 위해
         self.foot_gap_raw = self.raw[0].height - max(
             (f.getbbox() or (0, 0, 0, f.height))[3] for f in self.raw)
@@ -188,7 +270,7 @@ class Pet(QWidget):
     # ── 크기 / 위치 ──
     @property
     def scale(self) -> float:
-        return SCALES[self.scale_name]
+        return SCALES[self.scale_name] * self.prof.get("size", 1.0)
 
     def _build_pixmaps(self):
         s = self.scale
@@ -234,19 +316,19 @@ class Pet(QWidget):
             self.say(say)
 
     def say(self, text: str, sec: float = 2.5):
-        self.bubble, self.bubble_t = text, sec
+        if text:
+            self.bubble, self.bubble_t = text, sec
+
+    def sound(self, kind: str) -> str:
+        return random.choice(self.prof["sounds"].get(kind) or [""])
 
     def choose_next(self):
         r = random.random()
         if self.walk_on and r < 0.55:
             self.dir = random.choice((-1, 1))
             self.set_state("walk", dur=random.uniform(3, 8))
-        elif r < 0.68:
-            self.set_state("pose", "wiggle", random.uniform(1.5, 3))
-        elif r < 0.78:
-            self.set_state("pose", "back", random.uniform(1.5, 3))
-        elif r < 0.85:
-            self.set_state("pose", "wave", 1.5)
+        elif r < 0.85 and self.prof["moves"]:
+            self.set_state("pose", random.choice(self.prof["moves"]), random.uniform(1.5, 3))
         else:
             self.set_state("idle", dur=random.uniform(3, 7))
 
@@ -266,8 +348,8 @@ class Pet(QWidget):
             if self.remind_t >= REMIND_EVERY_MIN * 60 and not self.dragging:
                 self.remind_t = 0
                 self.calm_t = 0
-                self.set_state("pose", "wave", 4)
-                self.say(random.choice(REMIND_LINES), 6)
+                self.set_state("pose", "greet", 4)
+                self.say(self.sound("remind"), 6)
 
         if not self.dragging:
             getattr(self, "_tick_" + self.state)(dt)
@@ -294,7 +376,7 @@ class Pet(QWidget):
             self.fx = min(max(self.fx, lo), hi)
             self.dir *= -1
         self.move(int(self.fx), self.ground_y())
-        self.pose = "idle" if int(self.state_t * 4) % 2 == 0 else "wiggle"
+        self.pose = "walk"
         self.offset_y = -abs(math.sin(self.state_t * math.pi * 3)) * 6 * self.scale / 0.42
         if self.state_t > self.state_dur:
             self.set_state("idle", dur=random.uniform(2, 5))
@@ -318,15 +400,17 @@ class Pet(QWidget):
 
     # ── 그리기 ──
     def current_frame(self) -> int:
-        if self.posed:
-            return POSE[self.pose]
-        total = sum(self.durations)
+        f = self.prof["poses"].get(self.pose, self.prof["poses"]["idle"])
+        if isinstance(f, int):
+            return f
+        seq = list(range(len(self.raw))) if f is ALL else f
+        total = sum(self.durations[i] for i in seq)
         t = (self.anim_t * 1000) % total
-        for i, d in enumerate(self.durations):
-            if t < d:
+        for i in seq:
+            if t < self.durations[i]:
                 return i
-            t -= d
-        return 0
+            t -= self.durations[i]
+        return seq[0]
 
     def paintEvent(self, _):
         p = QPainter(self)
@@ -380,7 +464,7 @@ class Pet(QWidget):
             self.dragging = True
             self.calm_t = 0
             self.state, self.pose, self.offset_y = "drag", "surprise", 0
-            self.say("야다!!", 1.5)
+            self.say(self.sound("drag"), 1.5)
         if self.dragging:
             self.move(g - self.drag_off)
             self.fx = float(self.x())
@@ -399,14 +483,11 @@ class Pet(QWidget):
 
     def react(self):
         if self.state == "sleep":
-            self.set_state("pose", "surprise", 1.5, "하?")
+            self.set_state("pose", "surprise", 1.5, self.sound("wake"))
             return
-        kind = random.choice(list(CLICK_LINES))
-        line = random.choice(CLICK_LINES[kind])
-        if kind == "jump":
-            self.set_state("jump", "jump", 0.6, line)
-        else:
-            self.set_state("pose", kind, 2.0, line)
+        state, pose, lines = random.choice(self.prof["reacts"])
+        line = random.choice(lines or [""])
+        self.set_state(state, pose, 0.6 if state == "jump" else 2.0, line)
 
     def contextMenuEvent(self, e):
         self.menu.exec(e.globalPos())
@@ -435,7 +516,7 @@ class Pet(QWidget):
         m.addSeparator()
         m.addAction("재우기", lambda: self.set_state("sleep", "sleep", 1e9))
         m.addAction("깨우기", lambda: (setattr(self, "calm_t", 0),
-                                      self.set_state("pose", "wave", 1.5, "하?")))
+                                      self.set_state("pose", "greet", 1.5, self.sound("wake"))))
         m.addAction("화면 가운데로", self._recall)
         m.addSeparator()
         m.addAction("종료", QApplication.quit)
@@ -466,7 +547,7 @@ class Pet(QWidget):
         self.move(self.x(), self.ground_y())
         self.fx = float(self.x())
         self.calm_t = 0
-        self.set_state("pose", "wave", 1.5, "이야!")
+        self.set_state("pose", "greet", 1.5, self.sound("recall"))
         self.raise_()
 
 
