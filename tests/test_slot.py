@@ -12,6 +12,10 @@ def kst(*a):
 def test_slot_names():
     assert slot_of(kst(2026, 10, 14, 7, 7)) == "2026-10-14-morning"
     assert slot_of(kst(2026, 10, 14, 11, 59)) == "2026-10-14-morning"
+    # 08:27 예비 스케줄이 4시간 늦게 12:28 에 돌아도 아침 슬롯 (2026-11-06 실제 사례)
+    assert slot_of(kst(2026, 11, 6, 12, 28)) == "2026-11-06-morning"
+    assert slot_of(kst(2026, 11, 6, 15, 59)) == "2026-11-06-morning"
+    assert slot_of(kst(2026, 11, 6, 16, 0)) == "2026-11-06-evening"
     assert slot_of(kst(2026, 10, 14, 16, 47)) == "2026-10-14-evening"
     # 저녁 스케줄이 자정을 넘겨 늦게 돈 경우는 전날 저녁 슬롯
     assert slot_of(kst(2026, 10, 15, 0, 32)) == "2026-10-14-evening"
